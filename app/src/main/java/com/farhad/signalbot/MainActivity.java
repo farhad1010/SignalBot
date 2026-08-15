@@ -1,147 +1,91 @@
-package com.farhad.signalbot;
+package com.farhad.quotexsignal;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Bundle;
-import android.widget.*;
-import android.graphics.Color;
-import android.view.Gravity;
-import android.view.ViewGroup;
+import android.provider.Settings;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 
-public class MainActivity extends Activity {
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
 
     private static final int SCREEN_CAPTURE_REQUEST = 1001;
-    private LinearLayout root;
-    private TextView signal;
-    private TextView confidence;
-    private TextView duration;
-    private TextView status;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        showLogin();
-    }
 
-    private void showLogin() {
+        setContentView(R.layout.activity_main);
 
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER);
-        root.setPadding(40, 40, 40, 40);
+        EditText apiKey = findViewById(R.id.apiKey);
+        Button startButton = findViewById(R.id.startButton);
+        TextView status = findViewById(R.id.statusText);
 
-        TextView title = new TextView(this);
-        title.setText("SignalBot AI");
-        title.setTextSize(32);
-        title.setGravity(Gravity.CENTER);
+        startButton.setOnClickListener(v -> {
 
-        EditText password = new EditText(this);
-        password.setHint("Enter Password");
-        password.setInputType(0x00000081);
+            String key = apiKey.getText().toString().trim();
 
-        Button login = new Button(this);
-        login.setText("ENTER");
-
-        login.setOnClickListener(v -> {
-            if (password.getText().toString().equals("123456")) {
-                showDashboard();
-            } else {
-                Toast.makeText(this, "Wrong password", Toast.LENGTH_SHORT).show();
+            if (key.isEmpty()) {
+                status.setText("Enter OpenAI API key first");
+                return;
             }
+
+            getSharedPreferences("settings", MODE_PRIVATE)
+                    .edit()
+                    .putString("api_key", key)
+                    .apply();
+
+            if (!Settings.canDrawOverlays(this)) {
+
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName())
+                );
+
+                startActivity(intent);
+
+                status.setText("Allow Display over other apps");
+                return;
+            }
+
+            MediaProjectionManager manager =
+                    (MediaProjectionManager)
+                            getSystemService(MEDIA_PROJECTION_SERVICE);
+
+            startActivityForResult(
+                    manager.createScreenCaptureIntent(),
+                    SCREEN_CAPTURE_REQUEST
+            );
         });
-
-        root.addView(title);
-        root.addView(password,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        root.addView(login);
-
-        setContentView(root);
-    }
-
-    private void showDashboard() {
-
-        root.removeAllViews();
-
-        TextView title = new TextView(this);
-        title.setText("SignalBot AI");
-        title.setTextSize(30);
-        title.setGravity(Gravity.CENTER);
-
-        status = new TextView(this);
-        status.setText("Status: Waiting for chart");
-        status.setTextSize(18);
-        status.setGravity(Gravity.CENTER);
-
-        signal = new TextView(this);
-        signal.setText("NO SIGNAL");
-        signal.setTextSize(30);
-        signal.setGravity(Gravity.CENTER);
-        signal.setPadding(0, 50, 0, 30);
-
-        confidence = new TextView(this);
-        confidence.setText("Confidence: --%");
-        confidence.setTextSize(20);
-        confidence.setGravity(Gravity.CENTER);
-
-        duration = new TextView(this);
-        duration.setText("Suggested duration: --");
-        duration.setTextSize(20);
-        duration.setGravity(Gravity.CENTER);
-
-        Button capture = new Button(this);
-        capture.setText("START LIVE CHART ANALYSIS");
-
-        capture.setOnClickListener(v -> requestScreenCapture());
-
-        root.addView(title);
-        root.addView(status);
-        root.addView(signal);
-        root.addView(confidence);
-        root.addView(duration);
-        root.addView(capture);
-
-        setContentView(root);
-    }
-
-    private void requestScreenCapture() {
-
-        MediaProjectionManager manager =
-                (MediaProjectionManager)
-                        getSystemService(MEDIA_PROJECTION_SERVICE);
-
-        Intent intent = manager.createScreenCaptureIntent();
-
-        startActivityForResult(
-                intent,
-                SCREEN_CAPTURE_REQUEST
-        );
     }
 
     @Override
     protected void onActivityResult(
             int requestCode,
             int resultCode,
-            Intent data) {
-
+            Intent data
+    ) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == SCREEN_CAPTURE_REQUEST) {
+        if (requestCode == SCREEN_CAPTURE_REQUEST
+                && resultCode == Activity.RESULT_OK
+                && data != null) {
 
-            if (resultCode == RESULT_OK && data != null) {
+            Intent serviceIntent =
+                    new Intent(this, ScreenCaptureService.class);
 
-                status.setText("Status: Live chart capture enabled");
-                signal.setText("ANALYZING...");
-                confidence.setText("Confidence: Calculating...");
-                duration.setText("Suggested duration: Calculating...");
+            serviceIntent.putExtra("resultCode", resultCode);
+            serviceIntent.putExtra("data", data);
 
-            } else {
+            startForegroundService(serviceIntent);
 
-                status.setText("Screen capture permission denied");
-            }
+            TextView status = findViewById(R.id.statusText);
+            status.setText("AI screen analysis started");
         }
     }
 }
