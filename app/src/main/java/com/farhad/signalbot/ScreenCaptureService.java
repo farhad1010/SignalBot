@@ -22,7 +22,8 @@ import java.nio.ByteBuffer;
 
 public class ScreenCaptureService extends Service {
 
-    private static final String CHANNEL_ID = "AI_SCREEN_CAPTURE";
+    private static final String CHANNEL_ID =
+            "AI_SCREEN_CAPTURE";
 
     private MediaProjection mediaProjection;
     private VirtualDisplay virtualDisplay;
@@ -36,36 +37,53 @@ public class ScreenCaptureService extends Service {
 
     private boolean processingFrame = false;
 
+    private long lastAnalysisTime = 0;
+
+    private static final long ANALYSIS_INTERVAL =
+            5000;
+
     @Override
     public void onCreate() {
         super.onCreate();
 
-        handler = new Handler(Looper.getMainLooper());
-
-        screenDensity = getResources()
-                .getDisplayMetrics()
-                .densityDpi;
+        handler =
+                new Handler(
+                        Looper.getMainLooper()
+                );
 
         createNotificationChannel();
 
         Notification notification =
-                new Notification.Builder(this, CHANNEL_ID)
-                        .setContentTitle("AI Trading Signal")
-                        .setContentText("Live screen analysis is running")
-                        .setSmallIcon(android.R.drawable.ic_menu_view)
+                new Notification.Builder(
+                        this,
+                        CHANNEL_ID
+                )
+                        .setContentTitle(
+                                "AI Trading Signal"
+                        )
+                        .setContentText(
+                                "Live AI analysis is running"
+                        )
+                        .setSmallIcon(
+                                android.R.drawable.ic_menu_view
+                        )
                         .build();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= 29) {
 
             startForeground(
                     1,
                     notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                    ServiceInfo
+                            .FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             );
 
         } else {
 
-            startForeground(1, notification);
+            startForeground(
+                    1,
+                    notification
+            );
         }
     }
 
@@ -77,13 +95,21 @@ public class ScreenCaptureService extends Service {
     ) {
 
         int resultCode =
-                intent.getIntExtra("resultCode", -1);
+                intent.getIntExtra(
+                        "resultCode",
+                        -1
+                );
 
         Intent data =
-                intent.getParcelableExtra("data");
+                intent.getParcelableExtra(
+                        "data"
+                );
 
-        if (resultCode == -1 || data == null) {
+        if (resultCode == -1 ||
+                data == null) {
+
             stopSelf();
+
             return START_NOT_STICKY;
         }
 
@@ -101,70 +127,108 @@ public class ScreenCaptureService extends Service {
 
         startScreenCapture();
 
+        startOverlay();
+
         return START_STICKY;
     }
 
     private void startScreenCapture() {
 
         android.util.DisplayMetrics metrics =
-                getResources().getDisplayMetrics();
+                getResources()
+                        .getDisplayMetrics();
 
-        screenWidth = metrics.widthPixels;
-        screenHeight = metrics.heightPixels;
+        screenWidth =
+                metrics.widthPixels;
 
-        imageReader = ImageReader.newInstance(
-                screenWidth,
-                screenHeight,
-                android.graphics.PixelFormat.RGBA_8888,
-                2
-        );
+        screenHeight =
+                metrics.heightPixels;
 
-        imageReader.setOnImageAvailableListener(
-                reader -> {
+        screenDensity =
+                metrics.densityDpi;
 
-                    if (processingFrame) {
-                        return;
-                    }
-
-                    Image image = reader.acquireLatestImage();
-
-                    if (image == null) {
-                        return;
-                    }
-
-                    processingFrame = true;
-
-                    Bitmap bitmap = imageToBitmap(image);
-
-                    image.close();
-
-                    if (bitmap != null) {
-
-                        analyzeFrame(bitmap);
-
-                    } else {
-
-                        processingFrame = false;
-                    }
-
-                },
-                handler
-        );
-
-        virtualDisplay =
-                mediaProjection.createVirtualDisplay(
-                        "AITradingScreen",
+        imageReader =
+                ImageReader.newInstance(
                         screenWidth,
                         screenHeight,
-                        screenDensity,
-                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                        imageReader.getSurface(),
-                        null,
+                        android.graphics.PixelFormat.RGBA_8888,
+                        2
+                );
+
+        imageReader
+                .setOnImageAvailableListener(
+                        reader -> {
+
+                            long now =
+                                    System.currentTimeMillis();
+
+                            if (processingFrame) {
+                                return;
+                            }
+
+                            if (now -
+                                    lastAnalysisTime <
+                                    ANALYSIS_INTERVAL) {
+
+                                return;
+                            }
+
+                            Image image =
+                                    reader
+                                            .acquireLatestImage();
+
+                            if (image == null) {
+                                return;
+                            }
+
+                            processingFrame =
+                                    true;
+
+                            lastAnalysisTime =
+                                    now;
+
+                            Bitmap bitmap =
+                                    imageToBitmap(
+                                            image
+                                    );
+
+                            image.close();
+
+                            if (bitmap != null) {
+
+                                analyzeFrame(
+                                        bitmap
+                                );
+
+                            } else {
+
+                                processingFrame =
+                                        false;
+                            }
+
+                        },
                         handler
                 );
+
+        virtualDisplay =
+                mediaProjection
+                        .createVirtualDisplay(
+                                "AITradingScreen",
+                                screenWidth,
+                                screenHeight,
+                                screenDensity,
+                                DisplayManager
+                                        .VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                                imageReader
+                                        .getSurface(),
+                                null,
+                                handler
+                        );
     }
 
-    private Bitmap imageToBitmap(Image image) {
+    private Bitmap imageToBitmap(
+            Image image
+    ) {
 
         Image.Plane[] planes =
                 image.getPlanes();
@@ -184,11 +248,13 @@ public class ScreenCaptureService extends Service {
 
         int rowPadding =
                 rowStride -
-                        pixelStride * screenWidth;
+                        pixelStride *
+                                screenWidth;
 
         int bitmapWidth =
                 screenWidth +
-                        rowPadding / pixelStride;
+                        rowPadding /
+                                pixelStride;
 
         Bitmap bitmap =
                 Bitmap.createBitmap(
@@ -197,46 +263,174 @@ public class ScreenCaptureService extends Service {
                         Bitmap.Config.ARGB_8888
                 );
 
-        bitmap.copyPixelsFromBuffer(buffer);
+        buffer.rewind();
 
-        return Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                screenWidth,
-                screenHeight
+        bitmap.copyPixelsFromBuffer(
+                buffer
         );
-    }
 
-    private void analyzeFrame(Bitmap bitmap) {
-
-        /*
-         * AI analysis will be connected here.
-         *
-         * The next step will:
-         *
-         * 1. Compress the screenshot
-         * 2. Send it to the AI API
-         * 3. Receive BUY / SELL / WAIT
-         * 4. Receive confidence %
-         * 5. Receive score /5
-         * 6. Update the floating AI panel
-         */
+        Bitmap cropped =
+                Bitmap.createBitmap(
+                        bitmap,
+                        0,
+                        0,
+                        screenWidth,
+                        screenHeight
+                );
 
         bitmap.recycle();
 
-        processingFrame = false;
+        return cropped;
+    }
+
+    private void analyzeFrame(
+            Bitmap bitmap
+    ) {
+
+        String apiKey =
+                getSharedPreferences(
+                        "settings",
+                        MODE_PRIVATE
+                )
+                        .getString(
+                                "api_key",
+                                ""
+                        );
+
+        if (apiKey.isEmpty()) {
+
+            bitmap.recycle();
+
+            sendResult(
+                    "WAIT",
+                    0,
+                    0,
+                    "OpenAI API key is missing."
+            );
+
+            processingFrame = false;
+
+            return;
+        }
+
+        AIAnalysis ai =
+                new AIAnalysis();
+
+        ai.analyze(
+                apiKey,
+                bitmap,
+                new AIAnalysis.Callback() {
+
+                    @Override
+                    public void onResult(
+                            String signal,
+                            int confidence,
+                            int score,
+                            String reason
+                    ) {
+
+                        sendResult(
+                                signal,
+                                confidence,
+                                score,
+                                reason
+                        );
+
+                        processingFrame =
+                                false;
+                    }
+
+                    @Override
+                    public void onError(
+                            String error
+                    ) {
+
+                        sendResult(
+                                "WAIT",
+                                0,
+                                0,
+                                error
+                        );
+
+                        processingFrame =
+                                false;
+                    }
+                }
+        );
+    }
+
+    private void sendResult(
+            String signal,
+            int confidence,
+            int score,
+            String reason
+    ) {
+
+        Intent intent =
+                new Intent(
+                        AIOverlayService
+                                .ACTION_AI_RESULT
+                );
+
+        intent.setPackage(
+                getPackageName()
+        );
+
+        intent.putExtra(
+                "signal",
+                signal
+        );
+
+        intent.putExtra(
+                "confidence",
+                confidence
+        );
+
+        intent.putExtra(
+                "score",
+                score
+        );
+
+        intent.putExtra(
+                "reason",
+                reason
+        );
+
+        sendBroadcast(intent);
+    }
+
+    private void startOverlay() {
+
+        if (Build.VERSION.SDK_INT >= 26) {
+
+            startForegroundService(
+                    new Intent(
+                            this,
+                            AIOverlayService.class
+                    )
+            );
+
+        } else {
+
+            startService(
+                    new Intent(
+                            this,
+                            AIOverlayService.class
+                    )
+            );
+        }
     }
 
     private void createNotificationChannel() {
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= 26) {
 
             NotificationChannel channel =
                     new NotificationChannel(
                             CHANNEL_ID,
                             "AI Screen Capture",
-                            NotificationManager.IMPORTANCE_LOW
+                            NotificationManager
+                                    .IMPORTANCE_LOW
                     );
 
             NotificationManager manager =
@@ -245,7 +439,10 @@ public class ScreenCaptureService extends Service {
                     );
 
             if (manager != null) {
-                manager.createNotificationChannel(channel);
+
+                manager.createNotificationChannel(
+                        channel
+                );
             }
         }
     }
@@ -254,17 +451,23 @@ public class ScreenCaptureService extends Service {
     public void onDestroy() {
 
         if (virtualDisplay != null) {
+
             virtualDisplay.release();
+
             virtualDisplay = null;
         }
 
         if (imageReader != null) {
+
             imageReader.close();
+
             imageReader = null;
         }
 
         if (mediaProjection != null) {
+
             mediaProjection.stop();
+
             mediaProjection = null;
         }
 
@@ -272,7 +475,10 @@ public class ScreenCaptureService extends Service {
     }
 
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(
+            Intent intent
+    ) {
+
         return null;
     }
 }
