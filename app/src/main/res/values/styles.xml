@@ -1,7 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
 <resources>
-    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+
+    <style name="Theme.QuotexSignal"
+        parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
         <item name="android:fontFamily">sans</item>
-        <item name="android:statusBarColor">#0B1020</item>
-        <item name="android:navigationBarColor">#0B1020</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@android:color/white</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:colorAccent">#2962FF</item>
+
     </style>
+
 </resources>
