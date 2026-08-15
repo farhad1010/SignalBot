@@ -1,31 +1,18 @@
-name: Build Android APK
+package com.farhad.signalbot;
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
+import android.os.Bundle;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-    steps:
-      - uses: actions/checkout@v4
+        TextView textView = new TextView(this);
+        textView.setText("SignalBot");
+        textView.setTextSize(24);
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build APK
-        run: gradle :app:assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SignalBot-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+        setContentView(textView);
+    }
+}
