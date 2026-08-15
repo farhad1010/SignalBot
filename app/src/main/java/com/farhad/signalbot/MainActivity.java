@@ -6,12 +6,13 @@ import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    TextView signalText;
-    TextView statusText;
+    private TextView signalText;
+    private TextView statusText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -19,14 +20,14 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(40, 60, 40, 40);
-        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+        layout.setGravity(Gravity.CENTER);
+        layout.setPadding(40, 40, 40, 40);
 
         TextView title = new TextView(this);
         title.setText("SignalBot");
         title.setTextSize(32);
         title.setGravity(Gravity.CENTER);
-        title.setTextColor(Color.WHITE);
+        title.setTextColor(Color.BLACK);
 
         statusText = new TextView(this);
         statusText.setText("Ready");
@@ -35,9 +36,9 @@ public class MainActivity extends AppCompatActivity {
 
         signalText = new TextView(this);
         signalText.setText("WAITING FOR SIGNAL");
-        signalText.setTextSize(28);
+        signalText.setTextSize(26);
         signalText.setGravity(Gravity.CENTER);
-        signalText.setPadding(0, 60, 0, 60);
+        signalText.setPadding(0, 50, 0, 50);
 
         Button upButton = new Button(this);
         upButton.setText("UP");
